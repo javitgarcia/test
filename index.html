@@ -14,43 +14,61 @@
 			<v-content>
 				<v-container>
 					<v-toolbar dark color="primary">
-			    <v-toolbar-title>Cálculo de días por antigüedad</v-toolbar-title>
-			    <v-spacer></v-spacer>
-			  </v-toolbar>
+						<v-toolbar-title>Cálculo de días por antigüedad</v-toolbar-title>
+						<v-spacer></v-spacer>
+					</v-toolbar>
 					<v-card class="mb-2">
-						<v-menu
-							v-model="menu"
-							:close-on-content-click="false"
-							:nudge-right="40"
-							lazy
-							transition="scale-transition"
-							offset-y
-							full-width
-							max-width="290px"
-							min-width="290px">
-							<template v-slot:activator="{ on }">
-								<v-text-field
-									placeholder="Introduce la fecha de alta"
-									v-model="computedDateFormatted"
-									label="Fecha de alta"
-									persistent-hint
-									prepend-inner-icon="event"
-									readonly
-									v-on="on">
-								</v-text-field>
-							</template>
-							<v-date-picker
-								v-model="date"
-								locale="es-es"
-								first-day-of-week="1"
-								:max="hoy().toISOString().substr(0, 10)"
-								no-title
-								@input="menu = false"></v-date-picker>
-						</v-menu>
+						<v-layout row>
+							<v-flex xs5>
+								<v-subheader>Incorporación</v-subheader>
+							</v-flex>
+							<v-flex xs7>
+								<v-menu
+									v-model="menu"
+									:close-on-content-click="false"
+									:nudge-right="40"
+									lazy
+									transition="scale-transition"
+									offset-y
+									full-width
+									max-width="290px"
+									min-width="290px">
+									<template v-slot:activator="{ on }">
+										<v-text-field
+											placeholder="Introducir fecha"
+											v-model="computedDateFormatted"
+											label="Introducir fecha"
+											persistent-hint
+											prepend-inner-icon="event"
+											readonly
+											v-on="on">
+										</v-text-field>
+									</template>
+									<v-date-picker
+										v-model="date"
+										locale="es-es"
+										first-day-of-week="1"
+										:max="hoy.toISOString().substr(0, 10)"
+										no-title
+										@input="menu = false"></v-date-picker>
+								</v-menu>
+								
+							</v-flex>
+						</v-layout>
 					</v-card>
 					<v-card class="mb-2">
 						<v-card-text class="subheading">
-							<div class="headline">Días</div><br>
+							<div class="headline">Cálculos a {{fin_año.toLocaleDateString()}}:</div><br>
+							<div>Antigüedad: {{años_trabajados()}} años</div>
+							<div>Trienios: {{trienios()}}</div>
+							<div>Próximo trienio: {{proximo_trienio().toLocaleDateString()}}</div>
+							<div>Asuntos propios por antigüedad: {{asuntos_propios_extra()}}</div>
+							<div>Vacaciones por antigüedad: {{vacaciones_extra()}}</div>
+						</v-card-text>
+					</v-card>
+					<v-card class="mb-2">
+						<v-card-text class="subheading">
+							<div class="headline">Total anual de días:</div><br>
 							<div>
 								Vacaciones: {{vacaciones}}
 								<span v-if="vacaciones_extra()"> + {{vacaciones_extra()}}</span>
@@ -60,16 +78,7 @@
 								<span v-if="asuntos_propios_extra()"> + {{asuntos_propios_extra()}}</span>
 							</div>
 							<div>Ajuste: {{ajustes}}</div>
-						</v-card-text>
-					</v-card>
-					<v-card class="mb-2">
-						<v-card-text class="subheading">
-							<div class="headline">Cálculos a {{hoy().toLocaleDateString()}}</div><br>
-							<div>Antigüedad: {{años_trabajados()}} años</div>
-							<div>Trienios: {{trienios()}}</div>
-							<div>Próximo trienio: {{proximo_trienio().toLocaleDateString()}}</div>
-							<div>Asuntos propios extra: {{asuntos_propios_extra()}}</div>
-							<div>Vacaciones extra: {{vacaciones_extra()}}</div>
+							<div>Ajuste día patrón: {{ajustes_dia_patron}}</div>
 						</v-card-text>
 					</v-card>
 					<v-card class="indigo lighten-1 white--text text-xs-center">
@@ -77,6 +86,9 @@
 							<p><strong>Normativa.</strong></p>
 							<p>Asuntos propios por trienios: 2 días con el 6º trienio y 1 día/trienio a partir del 8º trienio.</p>
 							<p>Vacaciones por años de antigüedad: 1 día con 15 años, 2 con 20, 3 con 25 y 4 con 30.</p>
+							<p>Cinco días de vacaciones se pueden disfrutar sueltos y unir a otros permisos.</p>
+							<p>Los días de ajuste se pueden unir a las vacaciones.</p>
+							<p>Fecha tope de disfrute: 31 de enero del año siguiente.</p>
 						</v-card-text>
 						<v-divider></v-divider>
 						<v-card-text class="white--text">
@@ -87,43 +99,50 @@
 			</v-content>
 		</v-app>
 	</div>
-	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vuetify/dist/vuetify.min.js"></script>
 	<script>
 		new Vue({
 			el: '#app',
 			data: {
 				date: "",
+				hoy: "",
+				fin_año: "",
+				fechaalta: "",
 				menu: false,
 				msg: 'Hola',
-				fechaalta: "new Date()",
 				vacaciones: 22,
 				asuntos_propios: 6,
-				ajustes: 2
+				ajustes: 3,
+				ajustes_dia_patron: 1
 			},
 
 			created: function() {
-				var hoy = this.hoy();
-				var offset = hoy.getTimezoneOffset()
-				var fecha = new Date(hoy.getTime() + (offset*60*1000));
+				var f = new Date();
+				var offset = f.getTimezoneOffset() * 60 * 1000
+				var hoy = new Date(f.getTime() + offset);
+				var fin_año = new Date(hoy.getUTCFullYear().toString() + "-12-31");
+				var fecha = new Date(hoy.getTime() + offset);
 
+				this.fin_año = fin_año;
 				this.fechaalta = hoy;
+				this.hoy = hoy;
 				this.date = fecha.toISOString().split('T')[0];
 			},
 
 			methods: {
-				hoy: function() {
-					return new Date();
-				},
+				// fin_año: function() {
+				// 	return new Date();
+				// },
 				años_trabajados: function() {
 					// años trabajados
-					var hoy = this.hoy();
+					var fin_año = this.fin_año;
 					var fechaalta = this.fechaalta;
-					var años = hoy.getUTCFullYear() - fechaalta.getUTCFullYear();
-					var mes = hoy.getUTCMonth() - fechaalta.getUTCMonth();
+					var años = fin_año.getUTCFullYear() - fechaalta.getUTCFullYear();
+					var mes = fin_año.getUTCMonth() - fechaalta.getUTCMonth();
 
 					if (mes < 0 ||
-							(mes === 0 && hoy.getUTCDate() < fechaalta.getUTCDate())) {
+							(mes === 0 && fin_año.getUTCDate() < fechaalta.getUTCDate())) {
 						años--;
 					}
 					
@@ -134,7 +153,7 @@
 				},
 				proximo_trienio: function() {
 					var resto = this.años_trabajados() % 3;
-					var año = this.hoy().getUTCFullYear() + 3 - (this.años_trabajados() % 3);
+					var año = this.fin_año.getUTCFullYear() + 3 - (this.años_trabajados() % 3);
 
 					return new Date(año,
 													this.fechaalta.getUTCMonth(),
